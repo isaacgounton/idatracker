@@ -1,0 +1,139 @@
+<!DOCTYPE html><html>
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Weekly Rhythm Register App</title>
+<script src="https://cdn.jsdelivr.net/npm/vue@2.6.14/dist/vue.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.7.1/dist/chart.min.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-app.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-firestore.js"></script>
+<script src="https://www.gstatic.com/firebasejs/8.10.0/firebase-auth.js"></script>
+<script src="https://apis.google.com/js/platform.js"></script>
+<meta name="google-signin-client_id" content="53769952755-9f0tn75g8ktassqqtap52k7ln7qdkrt6.apps.googleusercontent.com">
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&amp;display=swap" rel="stylesheet">
+<link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.3/css/all.min.css" rel="stylesheet">
+<link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div id="app">
+    <h1><i class="fas fa-chart-line"></i> Weekly Rhythm</h1>
+    
+    <div class="nav-tabs">
+        <button @click="currentView = 'tracker'" :class="['nav-tab', { active: currentView === 'tracker' }]">
+          <i class="fas fa-tasks"></i> Tracker
+        </button>
+        <button @click="currentView = 'reports'" :class="['nav-tab', { active: currentView === 'reports' }]">
+          <i class="fas fa-chart-bar"></i> Reports
+        </button>
+        
+        <!-- Conditionally display Sign In or Logout based on user's login status -->
+        <button v-if="!user" @click="signIn" class="nav-tab">
+          <i class="fas fa-sign-in-alt"></i> Sign In with Google
+        </button>
+        
+        <button v-else @click="signOut" class="nav-tab">
+          <i class="fas fa-sign-out-alt"></i> Logout
+        </button>
+      </div>
+      
+
+    <div v-if="user" class="user-info">
+      <img :src="user.image" :alt="user.name" class="user-avatar">
+      <span class="user-name">{{ user.name }}</span>
+    </div>
+
+    <!-- Tracker View -->
+    <div v-if="currentView === 'tracker'" class="fade-in">
+      <div class="table-container">
+        <table>
+          <thead>
+            <tr>
+              <th>Behavior/Action</th>
+              <th v-for="day in days">{{ day }}</th>
+              <th>Achieved</th>
+              <th>Goal</th>
+              <th>Net</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr v-for="(row, index) in rows" :key="index" :class="{ selected: selectedRow === index, 'fade-in': true }">
+              <td class="behavior-cell" @click="selectRow(index)">
+                {{ row.behavior }}
+              </td>
+              <td v-for="day in days">
+                <input type="checkbox" v-model="row.days[day]" @change="updateAchieved(row)">
+              </td>
+              <td class="achieved">{{ row.achieved }}</td>
+              <td class="goal">{{ row.goal }}</td>
+              <td class="net">{{ calculateNet(row) }}</td>
+              <td class="action-icons">
+                <template v-if="selectedRow === index">
+                  <i class="fas fa-edit" @click="editRow(index)" title="Edit"></i>
+                  <i class="fas fa-trash-alt" @click="deleteRow(index)" title="Delete"></i>
+                </template>
+              </td>
+            </tr>
+          </tbody>
+          <tfoot>
+            <tr>
+              <td>TOTAL</td>
+              <td v-for="day in days"></td>
+              <td class="achieved">{{ totalAchieved }}</td>
+              <td class="goal">{{ totalGoal }}</td>
+              <td class="net">{{ totalNet }}</td>
+              <td></td>
+            </tr>
+          </tfoot>
+        </table>
+      </div>
+
+      <!-- Add New Behavior/Action -->
+      <div v-if="editingIndex === null" class="add-row fade-in">
+        <h3><i class="fas fa-plus-circle"></i> Add New Behavior/Action</h3>
+        <input type="text" v-model="newRow.behavior" placeholder="Behavior/Action">
+        <input type="number" v-model="newRow.goal" placeholder="Goal">
+        <button @click="addRow"><i class="fas fa-plus"></i> Add Row</button>
+      </div>
+
+      <!-- Edit Behavior/Action -->
+      <div v-if="editingIndex !== null" class="edit-row fade-in">
+        <h3><i class="fas fa-edit"></i> Edit Behavior/Action</h3>
+        <input type="text" v-model="editingRow.behavior" placeholder="Behavior/Action">
+        <input type="number" v-model="editingRow.goal" placeholder="Goal">
+        <button @click="saveEdit"><i class="fas fa-save"></i> Save</button>
+        <button @click="cancelEdit"><i class="fas fa-times"></i> Cancel</button>
+      </div>
+
+
+      <p class="quote">
+        <i class="fas fa-quote-left"></i>
+        Commitment is doing the thing you said you were going to do long after the mood you said it in has left you.
+        <i class="fas fa-quote-right"></i>
+      </p>
+    </div>
+
+    <!-- Reports View -->
+    <div v-if="currentView === 'reports'" class="fade-in">
+      <h2><i class="fas fa-chart-bar"></i> Performance Reports</h2>
+      
+      <div class="add-row">
+        <label for="reportType">Select Report Type:</label>
+        <select v-model="selectedReportType" id="reportType" style="background-color: black; color: white;">
+          <option value="daily">Daily</option>
+          <option value="weekly">Weekly</option>
+          <option value="monthly">Monthly</option>
+          <option value="yearly">Yearly</option>
+          <option value="allTime">All Time</option>
+        </select>
+        <button @click="generateReport">Generate Report</button>
+      </div>
+
+      <div v-if="reportData" class="chart-container">
+        <canvas id="reportChart"></canvas>
+      </div>
+    </div>
+  </div>
+  <script src="scripts.js"></script>
+</body>
+</html>
